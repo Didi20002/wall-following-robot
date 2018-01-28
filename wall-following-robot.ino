@@ -19,14 +19,16 @@ Build the boy
 
 #define right 0
 #define left  1
-#define servoAngleLeft  140
-#define servoAngleRight 54
 
-#define kp 1
-#define kd 0
+#define servoAngleLeft  119.5
+#define servoAngleRight 74.5
+
+
+#define kp 10
+#define kd 0.5
 #define ki 0
 
-#define defaultSpeed 40
+#define defaultSpeed 100
 
 #define arrayLength 5
 
@@ -38,12 +40,10 @@ Adafruit_DCMotor *dcMotor2 = AFMS.getMotor(4);
 
 Servo servo1;
 
-double setPoint = 40;
+double setPoint = 30;
 double distance;
 double controlSignal;
 PID myPID(&distance, &controlSignal, &setPoint, kp, kd, ki, DIRECT);
-
-double distances[arrayLength];
 
 int mode = left;
 
@@ -62,17 +62,13 @@ void setup() {
 
   servo1.attach(servoPin);
   if (mode == left){
-    initServoParallel(servoAngleRight, 180);
+    servo1.write(servoAngleLeft);
   }
   else{
-    initServoParallel(0, servoAngleLeft);
+    servo1.write(servoAngleRight);
   }
-
-  distance = getDistance();
-  for (int i = 0; i < arrayLength; i++){
-    distances[i] = distance;
-  }
-  distance = getAverageDistance();
+  
+  distance = getSideDistance();
 
   AFMS.begin();
   dcMotor1->setSpeed(0);
@@ -80,17 +76,45 @@ void setup() {
   dcMotor1->run(FORWARD);
   dcMotor2->run(FORWARD);
 
-  myPID.SetOutputLimits(-50, 50);
+  myPID.SetOutputLimits(-100, 100);
   myPID.SetMode(AUTOMATIC);
 }
 
 /* LOOP */
 
 void loop() {
-  adjustServo();
-  distance = getDistance();
-  addDistance(distance);
-  distance = getAverageDistance();
+  distance = getSideDistance();
+  if (distance > 100){
+    if (mode == left){
+      dcMotor1->setSpeed(1.2 * 0.5 * defaultSpeed);
+      dcMotor2->setSpeed(2 * defaultSpeed);
+    }
+    else{
+      dcMotor1->setSpeed(1.2 * 2 * defaultSpeed);
+      dcMotor2->setSpeed(0.5 * defaultSpeed);
+    }
+    while (distance > 100){
+      distance = getSideDistance();
+    }
+  }
+  if (getFrontDistance() < 50){
+    if (mode == left){
+      dcMotor1->setSpeed(0);
+      dcMotor2->run(BACKWARD);
+      dcMotor2->setSpeed(defaultSpeed);
+    }
+    else{
+      dcMotor1->run(BACKWARD);
+      dcMotor1->setSpeed(1.2 * defaultSpeed);
+      dcMotor2->setSpeed(0);
+    }
+    while(getFrontDistance() < 100){
+      
+    }
+    dcMotor1->run(FORWARD);
+    dcMotor2->run(FORWARD);
+  }
+  
   myPID.Compute();
 
   if (mode == left){
@@ -113,63 +137,12 @@ void loop() {
       dcMotor2->setSpeed(defaultSpeed);
     }
   }
+  Serial.println(controlSignal);
 }
 
 /* FUNCTIONS */
-void adjustServo(){
-  double curAngle = servo1.read();
-  double minDistance = getDistance();
-  double minAngle = curAngle;
 
-  double angles[2];
-  if ((mode == left && controlSignal < 0) || (mode == right && controlSignal > 0)){
-    angles[0] = curAngle - abs(controlSignal)/10;
-    angles[1] = curAngle - abs(controlSignal)/5;
-  }
-  else{
-    angles[0] = curAngle + abs(controlSignal)/10;
-    angles[1] = curAngle + abs(controlSignal)/5;
-  }
-
-  double curDistance;
-  for (int i = 0; i < 2; i++){
-    servo1.write(angles[i]);
-    delay(100);
-    curDistance = getDistance();
-    if (curDistance < minDistance){
-      minDistance = curDistance;
-      minAngle = angles[i];
-    }
-  }
-
-  servo1.write(minAngle);
-  delay(50);
-}
-
-
-void initServoParallel(int startAngle, int endAngle){
-  for (int i = 0; i < 3; i++){
-    getDistance();
-    delay(30);
-  }
-  servo1.write(startAngle);
-  delay(30);
-  double minDistance = getDistance();
-  double minAngle = startAngle;
-  double curDistance;
-  for (int i = startAngle; i <= endAngle; i+=5){
-    servo1.write(i);
-    delay(30);
-    curDistance = getDistance();
-    if (curDistance < minDistance){
-      minDistance = curDistance;
-      minAngle = i;
-    }
-  }
-  servo1.write(minAngle);
-}
-
-double getDistance(){
+double getSideDistance(){
   int trigPin;
   int echoPin;
   if (mode == left){
@@ -181,6 +154,25 @@ double getDistance(){
     echoPin = US1echoPin;
   }
   
+  return getDistance(trigPin, echoPin);
+}
+
+double getFrontDistance(){
+  int trigPin;
+  int echoPin;
+  if (mode == left){
+    trigPin = US1trigPin;
+    echoPin = US1echoPin;
+  }
+  else{
+    trigPin = US2trigPin;
+    echoPin = US2echoPin;
+  }
+  
+  return getDistance(trigPin, echoPin);
+}
+
+double getDistance(int trigPin, int echoPin){
   long duration;
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
@@ -188,21 +180,6 @@ double getDistance(){
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
   duration = pulseIn(echoPin, HIGH);
-  return (duration/2) / 29.1;
-}
-
-void addDistance(double newDistance){
-  for (int i = 0; i < arrayLength - 1; i++){
-    distances[i] = distances[i + 1];
-  }
-  distances[arrayLength - 1] = newDistance;
-}
-
-double getAverageDistance(){
-  double sum = 0;
-  for (int i = 0; i < arrayLength; i++){
-    sum += distances[i];
-  }
-  return sum/arrayLength;
+  return (duration/2) / 29.1;  
 }
 
