@@ -1,7 +1,7 @@
 # Meet Indy!
 ![](./media/indy1.jpg)
 
-Indy is a 605 gram, 19.5 cm long robot designed to be the perfect wall-following machine. At its heart, the robot uses an arduino to perform PID control, allowing it to track walls smoothly. Indy's two ultrasonic sensors rotate around it's neck, letting it follow walls on its left or right while keeping an eye out ahead.
+Indy is a 539 gram, 19.5 cm long robot designed to be the perfect wall-following machine. At its heart, the robot uses an arduino to perform PID control, allowing it to track walls smoothly. Indy's two ultrasonic sensors rotate around it's neck, letting it follow walls on its left or right while keeping an eye out ahead.
 
 It's a little messy right now- once development is complete, I'll trim the wires to clean the robot up.
 

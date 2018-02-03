@@ -97,7 +97,7 @@ void loop() {
       distance = getSideDistance();
     }
   }
-  if (getFrontDistance() < 50){
+  if (getFrontDistance() < 20){
     if (mode == left){
       dcMotor1->setSpeed(0);
       dcMotor2->run(BACKWARD);
